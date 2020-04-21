@@ -15,7 +15,7 @@ Pin 14 *** Moteur 2
 Pin 15 *** Pin 8
 Pin 16 *** Pin (5V)
 
-commentzire rajouté lz 21/04 à 14h50
+commentzire rajouté le 21/04 à 14h50
 
 Joystik *** Arduino
 Pin Key *** Pin 2 (numérique côté droite de l’Arduino)
