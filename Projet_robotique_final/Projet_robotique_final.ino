@@ -4,7 +4,7 @@
 #include <L298NX2.h>
 #include <IRremote.h>
 
-#define LED_VERT      18
+#define LED_VERTE      18
 #define LED_ROUGE     17
 #define MOTEUR_DROIT   8
 #define MOTEUR_GAUCHE  7
@@ -18,7 +18,7 @@
 const unsigned long MEASURE_TIMEOUT = 50000UL; // 25ms = ~8m a 340m/s
 const float SOUND_SPEED = 340.0 / 1000; //Vitesse du son dans l'air en mm/microsecondes 
 int distance_cm;
-
+int distance_obstacle = 50; // distance minimale entre le robot et l'obstacle
 
 //const int RECV_PIN = 12;
 IRrecv irrecv(RECV_PIN);
@@ -49,9 +49,9 @@ void Find_UID() {
   if ( ! rfid.PICC_ReadCardSerial())      // Si il y a une carte, on retourne son nom
     return;
 
-   
-String myKey=String(rfid.uid.uidByte[0],HEX) + " " + String(rfid.uid.uidByte[1],HEX) + " " + String(rfid.uid.uidByte[2],HEX) + " " + String(rfid.uid.uidByte[3],HEX);
-delay(500);
+     
+  String myKey=String(rfid.uid.uidByte[0],HEX) + " " + String(rfid.uid.uidByte[1],HEX) + " " + String(rfid.uid.uidByte[2],HEX) + " " + String(rfid.uid.uidByte[3],HEX);
+  delay(500);
 
   if ((myKey == "e0 58 45 1a" or "26 5d 5e 34") and (Starter_flag == 0)){   //Condition pour rentrer dans laboucle Starter_flag
   
@@ -59,7 +59,7 @@ delay(500);
   delay(100);
 
   }
-else if ((myKey == "e0 58 45 1a" or "26 5d 5e 34") and (Starter_flag == 1)){ //Condition pour sortir de la boucle Starter_flag
+  else if ((myKey == "e0 58 45 1a" or "26 5d 5e 34") and (Starter_flag == 1)){ //Condition pour sortir de la boucle Starter_flag
   
   
   Starter_flag = 0;
@@ -85,11 +85,11 @@ void init_sequence(){
   
   irrecv.enableIRIn();
   irrecv.blink13(true);
-  pinMode(LED_VERT, OUTPUT);
+  pinMode(LED_VERTE, OUTPUT);
   pinMode(LED_ROUGE, OUTPUT);
-  pinMode(7, OUTPUT);
+  pinMode(MOTEUR_GAUCHE, OUTPUT);
   pinMode(MOTEUR_DROIT, OUTPUT);
-  pinMode(42, OUTPUT);
+
 
   pinMode(TRIGGER_PIN, OUTPUT);
   digitalWrite(TRIGGER_PIN, LOW); // La broche TRIGGER doit etre LOW au repos
@@ -98,21 +98,22 @@ void init_sequence(){
   lcd.init(); 
   lcd.backlight();
   lcd.setCursor(0,0);
-  lcd.print("Show ID...");
+  lcd.print("----Show ID-----");
 
 }
 
 void wrong_UID_sequence(){
+ 
+ 
   lcd.setCursor(0,0);
-  lcd.print("Show ID");
-
-  lcd.setCursor(0,1);
+  lcd.print("----Show ID-----");
+  lcd.setCursor(4,1);
   lcd.print("Not ready");
   
   
   Find_UID();
   Serial.print(myKey);
-  digitalWrite(LED_VERT,LOW);
+  digitalWrite(LED_VERTE,LOW);
   digitalWrite(LED_ROUGE,HIGH);
 
   digitalWrite(MOTEUR_GAUCHE, LOW);
@@ -142,33 +143,17 @@ void set_directions(){
    if (cmd == "16734885"){ 
     digitalWrite(MOTEUR_GAUCHE, LOW);
     digitalWrite(MOTEUR_DROIT, HIGH);
-  }
-  // on tourne a droite
-  if (distance_cm < 50){
-    Turn_flag = 1;
+  
+  
   }  
 }
 
-void measure_distance(){
-
-  digitalWrite(TRIGGER_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIGGER_PIN, LOW);
-  
-  //Mesure le temps entre l'envoi de l'impulsion ultrasonique et son echo (s'il existe)
-  long measure = pulseIn(ECHO_PIN, HIGH, MEASURE_TIMEOUT);
-  // Calcule la distance Ã  partir du temps mesure
-  float distance_cm = measure / 20.0 * SOUND_SPEED;
- 
-  digitalWrite(LED_VERT, HIGH);
-  digitalWrite(LED_ROUGE,LOW);
-}
 
 void turn_to_left(){
   digitalWrite(MOTEUR_GAUCHE, LOW);
   digitalWrite(MOTEUR_DROIT, HIGH);
   Turn_flag = 0;
-  delay(300);
+  
 }
 
 
@@ -181,19 +166,39 @@ void loop(){
 
   while(!Starter_flag){
     wrong_UID_sequence();  
+    Serial.println(Turn_flag);
   }
 
   while(Starter_flag and !Turn_flag){
     
     
+    digitalWrite(LED_ROUGE, LOW);
+    digitalWrite(LED_VERTE, HIGH);
+    
     lcd.clear();
     lcd.setCursor(0,0);
-    lcd.print("ID OK");
+    lcd.print("-----ID OK------");
     
-    measure_distance();
+    digitalWrite(TRIGGER_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIGGER_PIN, LOW);
+    //Mesure le temps entre l'envoi de l'impulsion ultrasonique et son echo (s'il existe)
+    long measure = pulseIn(ECHO_PIN, HIGH, MEASURE_TIMEOUT);
+    // Calcule la distance Ã  partir du temps mesure
+    float distance_cm = measure / 20.0 * SOUND_SPEED;
+    Serial.println(distance_cm);
+    delay(200);
+    
     Find_UID();
     IR();
-    set_directions();     
+    set_directions();    
+
+    if (distance_cm < distance_obstacle){
+    Turn_flag = 1;
+     }
+    Serial.println(Turn_flag); 
+
+    
   }
     if(Turn_flag){
 
